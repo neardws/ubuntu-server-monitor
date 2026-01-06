@@ -1,0 +1,5 @@
+psutil>=5.9.0
+pynvml>=11.5.0
+python-telegram-bot>=20.0
+schedule>=1.2.0
+PyYAML>=6.0

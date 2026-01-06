@@ -1,0 +1,26 @@
+telegram:
+  bot_token: "YOUR_BOT_TOKEN"
+  chat_id: "YOUR_CHAT_ID"
+
+server:
+  name: "My Ubuntu Server"
+
+monitor:
+  interval: 60  # seconds
+
+alerts:
+  cpu_warning: 70
+  cpu_critical: 90
+  memory_warning: 80
+  memory_critical: 95
+  disk_warning: 80
+  disk_critical: 95
+  gpu_temp_warning: 75
+  gpu_temp_critical: 85
+  gpu_memory_warning: 80
+  gpu_memory_critical: 95
+  cooldown: 300  # seconds between same alerts
+
+daily_report:
+  enabled: true
+  time: "09:00"

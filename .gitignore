@@ -1,0 +1,14 @@
+config.yaml
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.env
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
