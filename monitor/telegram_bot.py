@@ -39,10 +39,13 @@ class TelegramBot:
     async def cmd_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text = """<b>Available Commands:</b>
 /status - Server overview
-/cpu - CPU information
+/cpu - CPU detailed information
 /memory - Memory usage
 /disk - Disk usage
 /gpu - GPU information
+/temps - Sensor temperatures
+/services - Running services
+/containers - Docker containers
 /top - Top processes
 /help - Show this help"""
         await update.message.reply_html(help_text)
@@ -67,13 +70,23 @@ class TelegramBot:
         await update.message.reply_html(text)
 
     async def cmd_cpu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        cpu_percent = self.system_collector.get_cpu_percent()
+        cpu = self.system_collector.get_cpu_detailed()
         load = self.system_collector.get_load_average()
         text = f"""<b>CPU Information</b>
 
-<b>Usage:</b> {cpu_percent:.1f}%
-<b>Load Average:</b> {load[0]:.2f}, {load[1]:.2f}, {load[2]:.2f}
-<b>Cores:</b> {__import__('psutil').cpu_count()}"""
+<b>Usage:</b> {cpu['percent']:.1f}%
+<b>Cores:</b> {cpu['cores']} physical, {cpu['threads']} logical
+<b>Load Average:</b> {load[0]:.2f}, {load[1]:.2f}, {load[2]:.2f}"""
+        
+        if cpu['freq_current']:
+            text += f"\n<b>Frequency:</b> {cpu['freq_current']:.0f} MHz"
+            if cpu['freq_max']:
+                text += f" (max: {cpu['freq_max']:.0f} MHz)"
+        
+        text += "\n\n<b>Per Core Usage:</b>"
+        for i, pct in enumerate(cpu['per_core_percent']):
+            text += f"\n  Core {i}: {pct:.1f}%"
+        
         await update.message.reply_html(text)
 
     async def cmd_memory(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -117,6 +130,46 @@ class TelegramBot:
             text += f"<code>{proc['name'][:20]:20}</code> CPU: {proc['cpu_percent']:.1f}% MEM: {proc['memory_percent']:.1f}%\n"
         await update.message.reply_html(text)
 
+    async def cmd_temps(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        temps = self.system_collector.get_temperatures()
+        if not temps:
+            await update.message.reply_text("No temperature sensors detected.")
+            return
+        
+        text = "<b>Sensor Temperatures</b>\n"
+        for sensor_name, entries in temps.items():
+            text += f"\n<b>{sensor_name}:</b>"
+            for entry in entries:
+                label = entry.label or "temp"
+                text += f"\n  {label}: {entry.current:.1f}°C"
+                if entry.high:
+                    text += f" (high: {entry.high:.0f}°C)"
+        await update.message.reply_html(text)
+
+    async def cmd_services(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        services = self.system_collector.get_running_services(20)
+        if not services:
+            await update.message.reply_text("No running services found or systemctl not available.")
+            return
+        
+        text = f"<b>Running Services ({len(services)})</b>\n\n"
+        for svc in services:
+            text += f"<code>{svc['name'][:30]}</code>\n"
+        await update.message.reply_html(text)
+
+    async def cmd_containers(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        containers = self.system_collector.get_docker_containers()
+        if not containers:
+            await update.message.reply_text("No running containers or Docker not available.")
+            return
+        
+        text = f"<b>Docker Containers ({len(containers)})</b>\n"
+        for c in containers:
+            text += f"\n<b>{c['name']}</b>\n"
+            text += f"  Image: <code>{c['image'][:30]}</code>\n"
+            text += f"  Status: {c['status']}\n"
+        await update.message.reply_html(text)
+
     def setup_handlers(self, app: Application):
         app.add_handler(CommandHandler("start", self.cmd_start))
         app.add_handler(CommandHandler("help", self.cmd_help))
@@ -125,6 +178,9 @@ class TelegramBot:
         app.add_handler(CommandHandler("memory", self.cmd_memory))
         app.add_handler(CommandHandler("disk", self.cmd_disk))
         app.add_handler(CommandHandler("gpu", self.cmd_gpu))
+        app.add_handler(CommandHandler("temps", self.cmd_temps))
+        app.add_handler(CommandHandler("services", self.cmd_services))
+        app.add_handler(CommandHandler("containers", self.cmd_containers))
         app.add_handler(CommandHandler("top", self.cmd_top))
 
     def run_polling(self):

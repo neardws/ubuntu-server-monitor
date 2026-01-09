@@ -15,10 +15,13 @@ A lightweight Ubuntu server monitoring tool that sends alerts and status updates
 | Command | Description |
 |---------|-------------|
 | `/status` | Server overview |
-| `/cpu` | CPU information |
+| `/cpu` | CPU detailed information (cores, frequency, per-core usage) |
 | `/memory` | Memory usage |
 | `/disk` | Disk usage |
 | `/gpu` | GPU information |
+| `/temps` | Sensor temperatures |
+| `/services` | Running systemd services |
+| `/containers` | Docker containers status |
 | `/top` | Top processes |
 | `/help` | Show help |
 

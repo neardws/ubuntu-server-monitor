@@ -1,3 +1,5 @@
+import json
+import subprocess
 import psutil
 from datetime import datetime
 
@@ -19,7 +21,14 @@ class SystemCollector:
 
     def get_disk_info(self) -> list:
         disks = []
-        for partition in psutil.disk_partitions():
+        skip_prefixes = ('/snap', '/boot/efi', '/run', '/dev', '/sys', '/proc')
+        skip_fstypes = ('squashfs', 'tmpfs', 'devtmpfs', 'overlay')
+        
+        for partition in psutil.disk_partitions(all=False):
+            if partition.mountpoint.startswith(skip_prefixes):
+                continue
+            if partition.fstype in skip_fstypes:
+                continue
             try:
                 usage = psutil.disk_usage(partition.mountpoint)
                 disks.append({
@@ -72,6 +81,72 @@ class SystemCollector:
             'load_average': self.get_load_average(),
             'uptime': self.get_uptime()
         }
+
+    def get_cpu_detailed(self) -> dict:
+        freq = psutil.cpu_freq()
+        return {
+            'cores': psutil.cpu_count(logical=False),
+            'threads': psutil.cpu_count(logical=True),
+            'percent': psutil.cpu_percent(interval=1),
+            'per_core_percent': psutil.cpu_percent(interval=0.1, percpu=True),
+            'freq_current': freq.current if freq else None,
+            'freq_min': freq.min if freq else None,
+            'freq_max': freq.max if freq else None
+        }
+
+    def get_temperatures(self) -> dict:
+        try:
+            temps = psutil.sensors_temperatures()
+            return temps if temps else {}
+        except AttributeError:
+            return {}
+
+    def get_running_services(self, limit: int = 20) -> list:
+        try:
+            result = subprocess.run(
+                ['systemctl', 'list-units', '--type=service', '--state=running', '--no-pager', '--plain'],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode != 0:
+                return []
+            lines = result.stdout.strip().split('\n')
+            services = []
+            for line in lines[1:]:
+                parts = line.split()
+                if len(parts) >= 4 and parts[0].endswith('.service'):
+                    services.append({
+                        'name': parts[0].replace('.service', ''),
+                        'status': parts[2],
+                        'sub': parts[3]
+                    })
+            return services[:limit]
+        except Exception:
+            return []
+
+    def get_docker_containers(self) -> list:
+        try:
+            result = subprocess.run(
+                ['docker', 'ps', '--format', '{{json .}}'],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode != 0:
+                return []
+            containers = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    try:
+                        container = json.loads(line)
+                        containers.append({
+                            'name': container.get('Names', ''),
+                            'image': container.get('Image', ''),
+                            'status': container.get('Status', ''),
+                            'ports': container.get('Ports', '')
+                        })
+                    except json.JSONDecodeError:
+                        continue
+            return containers
+        except Exception:
+            return []
 
     @staticmethod
     def format_bytes(bytes_val: int) -> str:

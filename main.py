@@ -95,6 +95,7 @@ class ServerMonitor:
             logger.info(f"Daily report scheduled at {report_time}")
 
     def run_schedule(self):
+        import time
         while self.running:
             schedule.run_pending()
             asyncio.run(self.check_and_alert())
@@ -102,7 +103,7 @@ class ServerMonitor:
                 if not self.running:
                     break
                 schedule.run_pending()
-                asyncio.get_event_loop().run_until_complete(asyncio.sleep(1))
+                time.sleep(1)
 
     def start(self):
         self.running = True
