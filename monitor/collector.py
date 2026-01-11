@@ -148,6 +148,31 @@ class SystemCollector:
         except Exception:
             return []
 
+    def get_tmux_sessions(self) -> list:
+        try:
+            result = subprocess.run(
+                ['tmux', 'list-sessions', '-F', '#{session_name}:#{session_windows}:#{session_attached}:#{session_created}'],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode != 0:
+                return []
+            sessions = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split(':')
+                    if len(parts) >= 4:
+                        created_ts = int(parts[3]) if parts[3].isdigit() else 0
+                        created_str = datetime.fromtimestamp(created_ts).strftime('%Y-%m-%d %H:%M') if created_ts else ''
+                        sessions.append({
+                            'name': parts[0],
+                            'windows': parts[1],
+                            'attached': parts[2] == '1',
+                            'created': created_str
+                        })
+            return sessions
+        except Exception:
+            return []
+
     @staticmethod
     def format_bytes(bytes_val: int) -> str:
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:

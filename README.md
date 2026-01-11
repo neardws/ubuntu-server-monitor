@@ -22,6 +22,7 @@ A lightweight Ubuntu server monitoring tool that sends alerts and status updates
 | `/temps` | Sensor temperatures |
 | `/services` | Running systemd services |
 | `/containers` | Docker containers status |
+| `/tmux` | Tmux sessions |
 | `/top` | Top processes |
 | `/help` | Show help |
 

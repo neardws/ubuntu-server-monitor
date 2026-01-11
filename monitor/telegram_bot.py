@@ -46,6 +46,7 @@ class TelegramBot:
 /temps - Sensor temperatures
 /services - Running services
 /containers - Docker containers
+/tmux - Tmux sessions
 /top - Top processes
 /help - Show this help"""
         await update.message.reply_html(help_text)
@@ -170,6 +171,20 @@ class TelegramBot:
             text += f"  Status: {c['status']}\n"
         await update.message.reply_html(text)
 
+    async def cmd_tmux(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        sessions = self.system_collector.get_tmux_sessions()
+        if not sessions:
+            await update.message.reply_text("No tmux sessions or tmux not available.")
+            return
+        
+        text = f"<b>Tmux Sessions ({len(sessions)})</b>\n"
+        for s in sessions:
+            attached = "attached" if s['attached'] else "detached"
+            text += f"\n<b>{s['name']}</b> ({attached})\n"
+            text += f"  Windows: {s['windows']}\n"
+            text += f"  Created: {s['created']}\n"
+        await update.message.reply_html(text)
+
     def setup_handlers(self, app: Application):
         app.add_handler(CommandHandler("start", self.cmd_start))
         app.add_handler(CommandHandler("help", self.cmd_help))
@@ -181,6 +196,7 @@ class TelegramBot:
         app.add_handler(CommandHandler("temps", self.cmd_temps))
         app.add_handler(CommandHandler("services", self.cmd_services))
         app.add_handler(CommandHandler("containers", self.cmd_containers))
+        app.add_handler(CommandHandler("tmux", self.cmd_tmux))
         app.add_handler(CommandHandler("top", self.cmd_top))
 
     def run_polling(self):
